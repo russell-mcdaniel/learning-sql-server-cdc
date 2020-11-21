@@ -1,0 +1,41 @@
+version: '3'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.2.1
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka-net
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:5.2.1
+    ports:
+      - "9092:9092"
+    networks:
+      - kafka-net
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+
+  kafka-manager:
+    image: hlebalbau/kafka-manager:stable
+    ports:
+      - "9000:9000"
+    networks:
+      - kafka-net
+    environment:
+      ZK_HOSTS: zookeeper:2181
+    depends_on:
+      - kafka
+
+networks:
+  kafka-net:
+
+volumes:
+  kafka-1:/d/Docker/Volumes/Kafka-1

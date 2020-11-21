@@ -1,0 +1,17 @@
+version: '3'
+
+services:
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    ports:
+      - "1433:1433"
+    networks:
+      - sql-server-net
+    environment: {
+      ACCEPT_EULA: "Y",
+      SA_PASSWORD: "sqlserver1!",
+      MSSQL_AGENT_ENABLED: "true"
+    }
+
+networks:
+  sql-server-net:
