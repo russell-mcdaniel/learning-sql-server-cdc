@@ -12,6 +12,8 @@ services:
       SA_PASSWORD: "sqlserver1!",
       MSSQL_AGENT_ENABLED: "true"
     }
+    volumes:
+      - //c/Source/Personal/learning-sql-server-cdc/data:/home/mssql/data
 
 networks:
   sql-server-net:
