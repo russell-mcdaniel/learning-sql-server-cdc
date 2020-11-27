@@ -4,13 +4,14 @@ A learning project for SQL Server CDC.
 
 ## Overview
 
-Roughly approximate a Pyxis ES Server scenario.
+Roughly approximate a medication tracking scenario.
 
 ## Components
 
 * **Database.** Data storage container.
 * **Generator.** Data creation workload.
-* **Reader.** Simulate query workload.
+* **Purger.** Data purging workload.
+* **Reader.** Query workload.
 * **Publisher.** Consume CDC feed and publish to message broker.
 
 ## Data Generation
@@ -19,46 +20,54 @@ The list of items is static because the pharmacy catalog is relatively static. R
 
 ### Entities
 
-| Entity      | Type        | Disposition | Rate (Hr) | Life (Mn) | Ratio     | Peak      |
-|-------------|-------------|-------------|-----------|-----------|-----------|-----------|
-| Company     | Reference   | Static      | <div style="text-align: center">       -</div> | <div style="text-align: center"> -</div> | <div style="text-align: right">        c</div> | <div style="text-align: right">     1,000</div> |
-| Facility    | Reference   | Static      | <div style="text-align: center">       -</div> | <div style="text-align: center"> -</div> | <div style="text-align: right">   10 x c</div> | <div style="text-align: right">    10,000</div> |
-| User        | Reference   | Static      | <div style="text-align: center">       -</div> | <div style="text-align: center"> -</div> | <div style="text-align: right">  100 x f</div> | <div style="text-align: right"> 1,000,000</div> |
-| Item        | Reference   | Static      | <div style="text-align: center">       -</div> | <div style="text-align: center"> -</div> | <div style="text-align: right">6,000 x f</div> | <div style="text-align: right">60,000,000</div> |
-| Patient     | Reference   | Cycled      | <div style="text-align: right">  200 x c</div> | <div style="text-align: right">480</div> | <div style="text-align: right">         </div> | <div style="text-align: right">          </div> |
-| Encounter   | Reference   | Cycled      | <div style="text-align: right">  400 x c</div> | <div style="text-align: right">240</div> | <div style="text-align: right">         </div> | <div style="text-align: right">          </div> |
-| Order       | Reference   | Cycled      | <div style="text-align: right">  800 x c</div> | <div style="text-align: right">120</div> | <div style="text-align: right">         </div> | <div style="text-align: right">          </div> |
-| Transaction | Transaction | Continuous  | <div style="text-align: right">4,000 x c</div> | <div style="text-align: center"> -</div> | <div style="text-align: right">         </div> | <div style="text-align: right">         -</div> |
+Rates are specified per company.
+
+| Entity      | Disposition | Ratio      | Rate (Hr)  | Rate (Day) |
+|-------------|-------------|-----------:|-----------:|-----------:|
+| Company     | Static      |          c |          - |          - |
+| User        | Static      |  1,000 x c |          - |          - |
+| Facility    | Static      |     10 x c |          - |          - |
+| Device      | Static      |     50 x f |          - |          - |
+| Item        | Static      |  5,000 x f |          - |          - |
+| Patient     | Cycled      |     20 x f |        200 |      4,800 |
+| Encounter   | Cycled      |    120 x f |      1,200 |     28,800 |
+| Order       | Cycled      |    240 x f |      2,400 |     57,600 |
+| Transaction | Continuous  |     12 x d |      6,000 |    144,000 |
 
 ### Notes
 
-Some details regarding the nature of the data generation include:
+General Information
 
-* Facilities are generated randomly from 1-20 per company for an average of ~10.
 * Static entities have a fixed number of instances generated.
-* Cycled entities regularly have new instances generated that have a fixed lifespan. Records for expired instances are removed from the transaction selection pool, but remain in the database.
-* Peak for static entities is the total number generated.
-* Peak for cycled entities is the maximum number of active instances that can be selected for reference by a transaction at any given time.
+* Cycled entities regularly have new instances generated that have a fixed lifespan of 24 hours. Records for expired instances are removed from the selection pool, but remain in the database.
+* Active static entities are the total number generated.
+* Active cycled entities are the maximum number of instances that can be selected for reference by another entity at any given time.
+
+Transaction Creation
+
 * Patient lifespan enables selection for encounters.
-* Encounter lifespan enables selection for transactions.
+* Encounter lifespan enables selection for orders.
 * Order lifespan enables selection for transactions.
-  * OPEN: Should orders be linked to encounters and/or patients?
-* Transactions do not directly select patients, only encounters. The patient is determined from the encounter. Since patients and encounters are related, but their lifespans are not linked in the program, this prevents problems during transaction generation.
+* Transactions do not directly select patients or encounters, only orders. The patient and encoutner is determined from the order.
 
-### References
+Observed daily peak, average, and ratio per patient record:
 
-Peak observed rates in customer samples:
-
-* Patient - 
-* Encounter - 
-* Order - 
-* Transaction - 167,000/day
+| Entity       | Peak      | Average   | Ratio  |
+|--------------|----------:|----------:|-------:|
+| Patients     |     5,000 |     2,600 |      - |
+| Encounters   |    31,000 |    15,800 |    6.4 |
+| Orders       |    57,000 |    30,400 |   12.1 |
+| Transactions |   174,000 |    93,100 |   35.2 |
 
 ## Data Reader
 
 TODO: Define queries and query rates.
 
 ## Data Publisher
+
+TODO: Describe.
+
+## Data Purger
 
 TODO: Describe.
 
