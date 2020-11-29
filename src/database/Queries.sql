@@ -25,9 +25,9 @@ VALUES
 GO
 
 INSERT INTO
-    dbo.Facility (FacilityKey, FacilityName, CompanyKey, CreatedAt)
+    dbo.Facility (CompanyKey, FacilityKey, FacilityName, CreatedAt)
 VALUES
-    ('6B8B67BF-E633-4005-9925-FCF983526A46', '12BF37EC-6E8A-4ABD-8A3A-AF8CD08AF99A', N'San Diago, CA', SYSDATETIME());
+    ('6B8B67BF-E633-4005-9925-FCF983526A46', '12BF37EC-6E8A-4ABD-8A3A-AF8CD08AF99A', N'San Diego, CA', SYSDATETIME());
 GO
 
 -- Create company and facilities in a single transaction.
@@ -49,22 +49,26 @@ GO
 INSERT INTO
     dbo.Facility (CompanyKey, FacilityKey, FacilityName, CreatedAt)
 VALUES
-    ('3A2FC681-A143-4A4E-BC47-09EDE8A7A8C1', '68461BD9-6CB2-402D-B3DE-3C56AFFF5229', N'Seattle, WA', SYSDATETIME()),
+    ('3A2FC681-A143-4A4E-BC47-09EDE8A7A8C1', '68461BD9-6CB2-402D-B3DE-3C56AFFF5229', N'Saettle, WA', SYSDATETIME());
+
+INSERT INTO
+    dbo.Facility (CompanyKey, FacilityKey, FacilityName, CreatedAt)
+VALUES
     ('3A2FC681-A143-4A4E-BC47-09EDE8A7A8C1', 'F6ED7478-9504-4B8B-AE6F-6AC2A4C355EC', N'Raleigh, NC', SYSDATETIME());
 GO
 
 COMMIT;
 GO
 
--- Update facility in separate transaction.
+-- Correct facility name in a separate transaction.
 UPDATE
     dbo.Facility
 SET
-    FacilityName = N'San Diego, CA'
+    FacilityName = N'Seattle, WA'
 WHERE
-    CompanyKey = '6B8B67BF-E633-4005-9925-FCF983526A46'
+    CompanyKey = '3A2FC681-A143-4A4E-BC47-09EDE8A7A8C1'
 AND
-    FacilityKey = '12BF37EC-6E8A-4ABD-8A3A-AF8CD08AF99A';
+    FacilityKey = '68461BD9-6CB2-402D-B3DE-3C56AFFF5229';
 GO
 
 -- Update table schema.
@@ -82,30 +86,42 @@ DECLARE
     @LsnFrom                        binary(10)          = (SELECT sys.fn_cdc_get_min_lsn(N'dbo_Company')),
     @LsnTo                          binary(10)          = (SELECT sys.fn_cdc_get_max_lsn());
 
-SELECT
-    *
-FROM
-    cdc.fn_cdc_get_all_changes_dbo_Company(@LsnFrom, @LsnTo, N'all update old');
+SELECT * FROM cdc.fn_cdc_get_all_changes_dbo_Company(@LsnFrom, @LsnTo, N'all update old');
 GO
 
 DECLARE
     @LsnFrom                        binary(10)          = (SELECT sys.fn_cdc_get_min_lsn(N'dbo_UserAccount')),
     @LsnTo                          binary(10)          = (SELECT sys.fn_cdc_get_max_lsn());
 
-SELECT
-    *
-FROM
-    cdc.fn_cdc_get_all_changes_dbo_UserAccount(@LsnFrom, @LsnTo, N'all update old');
+SELECT * FROM cdc.fn_cdc_get_all_changes_dbo_UserAccount(@LsnFrom, @LsnTo, N'all update old');
 GO
 
 DECLARE
     @LsnFrom                        binary(10)          = (SELECT sys.fn_cdc_get_min_lsn(N'dbo_Facility')),
     @LsnTo                          binary(10)          = (SELECT sys.fn_cdc_get_max_lsn());
 
-SELECT
-    *
-FROM
-    cdc.fn_cdc_get_all_changes_dbo_Facility(@LsnFrom, @LsnTo, N'all update old');
+SELECT * FROM cdc.fn_cdc_get_all_changes_dbo_Facility(@LsnFrom, @LsnTo, N'all update old');
+GO
+
+DECLARE
+    @LsnFrom                        binary(10)          = (SELECT sys.fn_cdc_get_min_lsn(N'dbo_Item')),
+    @LsnTo                          binary(10)          = (SELECT sys.fn_cdc_get_max_lsn());
+
+SELECT * FROM cdc.fn_cdc_get_all_changes_dbo_Item(@LsnFrom, @LsnTo, N'all update old');
+GO
+
+DECLARE
+    @LsnFrom                        binary(10)          = (SELECT sys.fn_cdc_get_min_lsn(N'dbo_Device')),
+    @LsnTo                          binary(10)          = (SELECT sys.fn_cdc_get_max_lsn());
+
+SELECT * FROM cdc.fn_cdc_get_all_changes_dbo_Device(@LsnFrom, @LsnTo, N'all update old');
+GO
+
+DECLARE
+    @LsnFrom                        binary(10)          = (SELECT sys.fn_cdc_get_min_lsn(N'dbo_Patient')),
+    @LsnTo                          binary(10)          = (SELECT sys.fn_cdc_get_max_lsn());
+
+SELECT * FROM cdc.fn_cdc_get_all_changes_dbo_Patient(@LsnFrom, @LsnTo, N'all update old');
 GO
 
 -- Query status.
@@ -113,6 +129,7 @@ EXECUTE sys.sp_cdc_help_change_data_capture;
 EXECUTE sys.sp_cdc_help_jobs;
 GO
 
+SELECT latency, command_count / duration AS throughput FROM sys.dm_cdc_log_scan_sessions WHERE session_id = 0
 SELECT * FROM sys.dm_cdc_log_scan_sessions;
 SELECT * FROM sys.dm_cdc_errors;
 GO
@@ -127,44 +144,48 @@ GO
 -- MISCELLANEOUS
 -- ================================================================================
 
--- Creation duration.
---
---   100 companies    host fs      forced flush on      1 thread       847 ms    Success.
---   100 companies    host fs      forced flush on      2 threads      n/a ms    Failure. SQL Server locks up after 2-4 inserts with PREEMPTIVE_OS_FLUSHFILEBUFFERS wait on INSERT and spinlocks soaking up CPU.
---   100 companies    docker fs    forced flush on      1 thread     1,102 ms    Success.
---   100 companies    docker fs    forced flush on      2 threads      n/a ms    Failure. Succeeded once, but then same freeze as above. More rows inserted before freezing (30+).
---   100 companies    docker fs    forced flush off     1 thread       699 ms    Success.
---   100 companies    docker fs    forced flush off     2 threads      366 ms    Success.
---   100 companies    docker fs    forced flush off    10 threads      166 ms    Success.
---   100 companies    host fs      forced flush off    10 threads      142 ms    Success.
---
--- https://www.sqlskills.com/blogs/paul/preemptive_os_flushfilebuffers-waits-on-linux/
--- https://support.microsoft.com/en-us/help/4131496/kb4131496-enable-forced-flush-mechanism-in-sql-server-2017-on-linux
---
--- To access SQL Server container as root to use mssql-conf:
--- docker exec -u root -it sql-server_sql-server_1 /bin/bash
---
-select count(*) AS Companies, datediff(millisecond, min(c.CreatedAt), max(c.CreatedAt)) AS TimeToCreate from dbo.Company c;
-select count(*) AS UserAccounts, datediff(millisecond, min(u.CreatedAt), max(u.CreatedAt)) AS TimeToCreate from dbo.UserAccount u;
-select count(*) AS Facilities, datediff(millisecond, min(f.CreatedAt), max(f.CreatedAt)) AS TimeToCreate from dbo.Facility f;
+-- Entity count and insertion time.
+select N'Company'     as Entity, count(*) as Records, min(CreatedAt) as CreatedAtMin, max(CreatedAt) as CreatedAtMax, datediff(millisecond, min(CreatedAt), max(CreatedAt)) as TimeToCreate   from dbo.Company (nolock)         union all
+select N'UserAccount' as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.UserAccount (nolock)     union all
+select N'Facility'    as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Facility (nolock)        union all
+select N'Item'        as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Item (nolock)            union all
+select N'Device'      as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Device (nolock);
+GO
+
+-- Entity name length.
+select N'CompanyName'       as EntityCol,   max(len(CompanyName))    as MaxLen  from dbo.Company        union all
+select N'UserEmail',                        max(len(Email))                     from dbo.UserAccount    union all
+select N'UserDisplayName',                  max(len(DisplayName))               from dbo.UserAccount    union all
+select N'FacilityName',                     max(len(FacilityName))              from dbo.Facility       union all
+select N'ItemName',                         max(len(ItemName))                  from dbo.Item           union all
+select N'DeviceName',                       max(len(DeviceName))                from dbo.Device;
 GO
 
 /*
-alter index pk_Company on dbo.Company reorganize;
-alter index pk_UserAccount on dbo.UserAccount reorganize;
-alter index pk_Facility on dbo.Facility reorganize;
+alter index all on dbo.Company rebuild;
+alter index all on dbo.UserAccount rebuild;
+alter index all on dbo.Facility rebuild;
+alter index all on dbo.Item rebuild;
+alter index all on dbo.Device rebuild;
+alter index all on dbo.Patient reorganize;
 GO
 
+delete from dbo.Patient;
+delete from dbo.Device;
+delete from dbo.Item;
 delete from dbo.Facility;
 delete from dbo.UserAccount;
 delete from dbo.Company;
 GO
-*/
 
 select * from dbo.Company (nolock);
 select * from dbo.UserAccount (nolock);
 select * from dbo.Facility (nolock);
+select * from dbo.Item (nolock);
+select * from dbo.Device (nolock);
+select * from dbo.Patient (nolock);
 GO
+*/
 
 -- Company user accounts.
 SELECT
@@ -201,29 +222,42 @@ ORDER BY
     f.FacilityKey;
 GO
 
--- Index information.
+-- Facility items.
 SELECT
-    OBJECT_SCHEMA_NAME(i.object_id)         AS schema_name,
-    OBJECT_NAME(i.object_id)                AS table_name,
-    i.name                                  AS index_name,
-    i.type_desc                             AS index_type,
-    i.index_id                              AS index_id,
-    ps.index_level                          AS index_level,
-    ps.partition_number                     AS partition_no,
-    ps.record_count                         AS record_count,
-    ps.page_count                           AS page_count,
-    ps.avg_page_space_used_in_percent       AS page_space_pct,
-    ps.avg_record_size_in_bytes             AS record_size,
-    ps.fragment_count                       AS fragment_count,
-    ps.avg_fragmentation_in_percent         AS fragment_pct,
-    ps.avg_fragment_size_in_pages           AS fragment_size
+    f.FacilityKey,
+    f.FacilityKey,
+    i.ItemKey,
+    i.ItemName
 FROM
-    sys.indexes i
-CROSS APPLY
-    sys.dm_db_index_physical_stats(db_id(), i.object_id, i.index_id, NULL, N'DETAILED') ps
+    dbo.Facility f
+INNER JOIN
+    dbo.Item i
+ON
+    i.CompanyKey = f.CompanyKey
+AND
+    i.FacilityKey = f.FacilityKey
 ORDER BY
-    OBJECT_SCHEMA_NAME(i.object_id),
-    OBJECT_NAME(i.object_id),
-    i.index_id,
-    ps.index_level;
+    f.CompanyKey,
+    f.FacilityKey,
+    i.ItemKey;
+GO
+
+-- Facility devices.
+SELECT
+    f.FacilityKey,
+    f.FacilityName,
+    d.DeviceKey,
+    d.DeviceName
+FROM
+    dbo.Facility f
+INNER JOIN
+    dbo.Device d
+ON
+    d.CompanyKey = f.CompanyKey
+AND
+    d.FacilityKey = f.FacilityKey
+ORDER BY
+    f.CompanyKey,
+    f.FacilityKey,
+    d.DeviceKey;
 GO
