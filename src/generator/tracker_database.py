@@ -8,24 +8,30 @@ from faker import Faker
 
 
 # Database initialization parameters.
-_company_count = 10
-_useraccount_count = 10#00   # Per company.
-_facility_count = 10         # Per company.
-_item_count = 50#00          # Per facility.
-_device_count = 50           # Per facility.
+_company_count = 1
+_useraccount_count = 10#00      # Per company.
+_facility_count = 10            # Per company.
+_item_count = 50#00             # Per facility.
+_device_count = 50              # Per facility.
 
-_company_threads = 10
+_patient_count = 20             # Per facility, per hour.
+_encounter_count = 6            # Per patient.
+_order_count = 2                # Per encounter.
+
+_hour_count = 24                # Hours of records to create.
+_creation_threads = 10
 
 # Database connection information.
 _sql_connection_string = ''
 
 
 def _create_companies():
+    """Creates companies and all subordinate entities."""
 
     fake = Faker()
     company_names = [fake.unique.company() for _ in range(_company_count)]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=_company_threads) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=_creation_threads) as executor:
         executor.map(_create_company, company_names)
 
 
@@ -45,12 +51,13 @@ def _create_company(company_names):
                 _create_useraccounts(company_key, company_names, cursor)
                 _create_facilities(company_key, cursor)
     except:
-        print('Unexpected error.')
+        print(f'Unexpected error creating company "{company[1]}" ({company[0]}).')
         traceback.print_exc()
         raise
 
 
 def _create_useraccounts(company_key, company_name, cursor):
+    """Creates user accounts for the specified company."""
 
     fake = Faker()
 
@@ -92,6 +99,7 @@ def _create_useraccount_email_username(display_name):
 
 
 def _create_facilities(company_key, cursor):
+    """Creates facilities for the specified company."""
 
     fake = Faker()
 
@@ -110,8 +118,11 @@ def _create_facility(company_key, facility_name, cursor):
     _create_items(company_key, facility_key, cursor)
     _create_devices(company_key, facility_key, cursor)
 
+    _create_patients(company_key, facility_key, cursor)
+
 
 def _create_items(company_key, facility_key, cursor):
+    """Creates items for the specified facility."""
 
     fake = Faker()
 
@@ -129,6 +140,7 @@ def _create_item(company_key, item_name, facility_key, cursor):
 
 
 def _create_devices(company_key, facility_key, cursor):
+    """Create devices for the specified facility."""
 
     fake = Faker()
 
@@ -151,6 +163,44 @@ def _create_device_name(fake):
     device_label = fake.unique.word().capitalize()
 
     return f'{device_zone} {device_label}'
+
+
+def _create_patients(company_key, facility_key, cursor):
+    """Create patients for the specified facility."""
+
+    # TODO: Consider providing the facility-level fake from the facility creation
+    #       function. This approach is equivalent, but may not be intuitive.
+    fake = Faker()
+
+    for _ in range(_patient_count * _hour_count):
+        _create_patient(company_key, fake.unique.name(), fake.unique.date_of_birth(), facility_key, fake, cursor)
+
+
+def _create_patient(company_key, patient_name, birthdate, facility_key, facility_fake, cursor):
+
+    patient_key = uuid.uuid4()
+    patient = (company_key, patient_key, patient_name, birthdate, facility_key, datetime.datetime.now())
+
+    sql = 'INSERT INTO dbo.Patient (CompanyKey, PatientKey, PatientName, Birthdate, FacilityKey, CreatedAt) VALUES (?, ?, ?, ?, ?, ?);'
+    cursor.execute(sql, patient)
+
+    _create_encounters(company_key, facility_key, patient_key, facility_fake, cursor)
+
+
+def _create_encounters(company_key, facility_key, patient_key, facility_fake, cursor):
+    """Creates encounters for the specified patient."""
+
+    for _ in range(_encounter_count):
+        _create_encounter(company_key, facility_fake.unique.bothify(text='ENC-?????-##########'), patient_key, facility_key, cursor)
+
+
+def _create_encounter(company_key, encounter_id, patient_key, facility_key, cursor):
+
+    encounter_key = uuid.uuid4()
+    encounter = (company_key, encounter_key, encounter_id, patient_key, facility_key, datetime.datetime.now())
+
+    sql = 'INSERT INTO dbo.Encounter (CompanyKey, EncounterKey, EncounterId, PatientKey, FacilityKey, CreatedAt) VALUES (?, ?, ?, ?, ?, ?);'
+    cursor.execute(sql, encounter)
 
 
 def initialize(sql_connection_string):

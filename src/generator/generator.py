@@ -16,7 +16,7 @@ def main():
 
     # Initialize the database.
     if not tracker_database.is_initialized(sql_connection_string):
-       tracker_database.initialize(sql_connection_string)
+        tracker_database.initialize(sql_connection_string)
 
     # Initialize the cache.
     tracker_cache.initialize(sql_connection_string)

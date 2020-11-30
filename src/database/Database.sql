@@ -506,10 +506,101 @@ GO
 -- --------------------------------------------------------------------------------
 -- Encounter
 -- --------------------------------------------------------------------------------
--- CREATE TABLE dbo.Encounter
--- (
--- );
--- GO
+CREATE TABLE dbo.Encounter
+(
+    CompanyKey                  uniqueidentifier    NOT NULL,
+    EncounterKey                uniqueidentifier    NOT NULL,
+    EncounterId                 nchar(20)           NOT NULL,
+    PatientKey                  uniqueidentifier    NOT NULL,
+    FacilityKey                 uniqueidentifier    NOT NULL,
+    CreatedAt                   datetime2(7)        NOT NULL,
+    Rover                       rowversion          NOT NULL
+);
+GO
+
+ALTER TABLE dbo.Encounter
+    ADD CONSTRAINT pk_Encounter
+    PRIMARY KEY CLUSTERED (CompanyKey, EncounterKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+ALTER TABLE dbo.Encounter
+    ADD CONSTRAINT uk_Encounter_FacilityKeyEncounterKey
+    UNIQUE (FacilityKey, EncounterKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+ALTER TABLE dbo.Encounter
+    ADD CONSTRAINT uk_Encounter_FacilityKeyEncounterId
+    UNIQUE (FacilityKey, EncounterId)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+ALTER TABLE dbo.Encounter
+    ADD CONSTRAINT uk_Encounter_PatientKeyEncounterKey
+    UNIQUE (PatientKey, EncounterKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+ALTER TABLE dbo.Encounter
+    ADD CONSTRAINT fk_Encounter_CompanyKey_Company
+    FOREIGN KEY (CompanyKey)
+    REFERENCES dbo.Company (CompanyKey)
+GO
+
+ALTER TABLE dbo.Encounter
+    ADD CONSTRAINT fk_Encounter_CompanyKeyFacilityKey_Facility
+    FOREIGN KEY (CompanyKey, FacilityKey)
+    REFERENCES dbo.Facility (CompanyKey, FacilityKey)
+GO
+
+ALTER TABLE dbo.Encounter
+    ADD CONSTRAINT fk_Encounter_CompanyKeyPatientKey_Patient
+    FOREIGN KEY (CompanyKey, PatientKey)
+    REFERENCES dbo.Patient (CompanyKey, PatientKey)
+GO
+
+CREATE NONCLUSTERED INDEX ix_Encounter_CompanyKey
+    ON dbo.Encounter (CompanyKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+CREATE NONCLUSTERED INDEX ix_Encounter_CompanyKeyFacilityKey
+    ON dbo.Encounter (CompanyKey, FacilityKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+CREATE NONCLUSTERED INDEX ix_Encounter_CompanyKeyPatientKey
+    ON dbo.Encounter (CompanyKey, PatientKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+-- Use full pages with stable company key and sequential rowversions. Review
+-- fragmentation behavior during tests to see if this is optimal.
+CREATE NONCLUSTERED INDEX ix_Encounter_CompanyKeyRover
+    ON dbo.Encounter (CompanyKey, Rover)
+    WITH FILLFACTOR = 100
+    ON CoreData;
+GO
+
+EXECUTE sys.sp_cdc_enable_table
+    @source_schema = N'dbo',
+    @source_name = N'Encounter',
+--  @capture_instance = N'',        -- Use default name for demo.
+    @supports_net_changes = 0,      -- No functions for net changes.
+    @role_name = NULL,              -- No gating role.
+    @index_name = NULL,
+    @captured_column_list = NULL,
+    @filegroup_name = N'CoreCdc',
+    @allow_partition_switch = 1;
+GO
 
 -- --------------------------------------------------------------------------------
 -- PharmacyOrder
@@ -520,9 +611,9 @@ GO
 -- GO
 
 -- --------------------------------------------------------------------------------
--- Transaction
+-- ItemTransaction
 -- --------------------------------------------------------------------------------
--- CREATE TABLE dbo.Transaction
+-- CREATE TABLE dbo.ItemTransaction
 -- (
 -- );
 -- GO

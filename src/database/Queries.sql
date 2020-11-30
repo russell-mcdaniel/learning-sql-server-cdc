@@ -149,7 +149,9 @@ select N'Company'     as Entity, count(*) as Records, min(CreatedAt) as CreatedA
 select N'UserAccount' as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.UserAccount (nolock)     union all
 select N'Facility'    as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Facility (nolock)        union all
 select N'Item'        as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Item (nolock)            union all
-select N'Device'      as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Device (nolock);
+select N'Device'      as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Device (nolock)          union all
+select N'Patient'     as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Patient (nolock)         union all
+select N'Encounter'   as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Encounter (nolock);
 GO
 
 -- Entity name length.
@@ -158,7 +160,9 @@ select N'UserEmail',                        max(len(Email))                     
 select N'UserDisplayName',                  max(len(DisplayName))               from dbo.UserAccount    union all
 select N'FacilityName',                     max(len(FacilityName))              from dbo.Facility       union all
 select N'ItemName',                         max(len(ItemName))                  from dbo.Item           union all
-select N'DeviceName',                       max(len(DeviceName))                from dbo.Device;
+select N'DeviceName',                       max(len(DeviceName))                from dbo.Device         union all
+select N'PatientName',                      max(len(PatientName))               from dbo.Patient        union all
+select N'EncounterId',                      max(len(EncounterId))               from dbo.Encounter;
 GO
 
 /*
@@ -168,14 +172,7 @@ alter index all on dbo.Facility rebuild;
 alter index all on dbo.Item rebuild;
 alter index all on dbo.Device rebuild;
 alter index all on dbo.Patient reorganize;
-GO
-
-delete from dbo.Patient;
-delete from dbo.Device;
-delete from dbo.Item;
-delete from dbo.Facility;
-delete from dbo.UserAccount;
-delete from dbo.Company;
+alter index all on dbo.Encounter reorganize;
 GO
 
 select * from dbo.Company (nolock);
@@ -184,6 +181,16 @@ select * from dbo.Facility (nolock);
 select * from dbo.Item (nolock);
 select * from dbo.Device (nolock);
 select * from dbo.Patient (nolock);
+select * from dbo.Encounter (nolock);
+GO
+
+delete from dbo.Encounter;
+delete from dbo.Patient;
+delete from dbo.Device;
+delete from dbo.Item;
+delete from dbo.Facility;
+delete from dbo.UserAccount;
+delete from dbo.Company;
 GO
 */
 
