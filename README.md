@@ -36,8 +36,8 @@ Rates are specified per company.
 | Device      | Static      |     50 x f |          - |          - |
 | Item        | Static      |  5,000 x f |          - |          - |
 | Patient     | Cycled      |     20 x f |        200 |      4,800 |
-| Encounter   | Cycled      |    120 x f |      1,200 |     28,800 |
-| Order       | Cycled      |    240 x f |      2,400 |     57,600 |
+| Encounter   | Cycled      |      6 x p |      1,200 |     28,800 |
+| Order       | Cycled      |      2 x e |      2,400 |     57,600 |
 | Transaction | Continuous  |     12 x d |      6,000 |    144,000 |
 
 ### Notes
@@ -90,9 +90,9 @@ Other instructions show using `sudo` instead of logging in as `root`, but it doe
 
 Other instructions show using `systemctl` to restart the service, but it does not appear to be available by default in the SQL Server on Linux image from Microsoft.
 
-Note that using DBCC TRACEON (3979, -1) from a SQLCMD session has the same effect, but only lasts for the session. Using `mssql-conf` configures the server to use this trace flag for the lifetime of your container (i.e. it will survive restarts until the container is removed altogether and recreated).
+Note that using `DBCC TRACEON (3979, -1)` from a SQLCMD session has the same effect, but only lasts for the session. Using `mssql-conf` configures the server to use this trace flag for the lifetime of your container (i.e. it will survive restarts until the container is removed altogether and recreated).
 
-Benchmarks showing the result and duration of creating 100 companies:
+Benchmarks showing the result and duration of creating 100 company records:
 
 | File System | Flush | Threads | Result  | Time     |
 |-------------|-------|--------:|---------|---------:|
