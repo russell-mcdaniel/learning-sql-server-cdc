@@ -151,18 +151,20 @@ select N'Facility'    as Entity, count(*),            min(CreatedAt),           
 select N'Item'        as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Item (nolock)            union all
 select N'Device'      as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Device (nolock)          union all
 select N'Patient'     as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Patient (nolock)         union all
-select N'Encounter'   as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Encounter (nolock);
+select N'Encounter'   as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.Encounter (nolock)       union all
+select N'Order'       as Entity, count(*),            min(CreatedAt),                 max(CreatedAt),                 datediff(millisecond, min(CreatedAt), max(CreatedAt))                   from dbo.PharmacyOrder (nolock);
 GO
 
 -- Entity name length.
-select N'CompanyName'       as EntityCol,   max(len(CompanyName))    as MaxLen  from dbo.Company        union all
-select N'UserEmail',                        max(len(Email))                     from dbo.UserAccount    union all
-select N'UserDisplayName',                  max(len(DisplayName))               from dbo.UserAccount    union all
-select N'FacilityName',                     max(len(FacilityName))              from dbo.Facility       union all
-select N'ItemName',                         max(len(ItemName))                  from dbo.Item           union all
-select N'DeviceName',                       max(len(DeviceName))                from dbo.Device         union all
-select N'PatientName',                      max(len(PatientName))               from dbo.Patient        union all
-select N'EncounterId',                      max(len(EncounterId))               from dbo.Encounter;
+select N'CompanyName'       as EntityCol,   max(len(CompanyName))    as MaxLen  from dbo.Company (nolock)        union all
+select N'UserEmail',                        max(len(Email))                     from dbo.UserAccount (nolock)    union all
+select N'UserDisplayName',                  max(len(DisplayName))               from dbo.UserAccount (nolock)    union all
+select N'FacilityName',                     max(len(FacilityName))              from dbo.Facility (nolock)       union all
+select N'ItemName',                         max(len(ItemName))                  from dbo.Item (nolock)           union all
+select N'DeviceName',                       max(len(DeviceName))                from dbo.Device (nolock)         union all
+select N'PatientName',                      max(len(PatientName))               from dbo.Patient (nolock)        union all
+select N'EncounterId',                      max(len(EncounterId))               from dbo.Encounter (nolock)      union all
+select N'OrderId',                          max(len(PharmacyOrderId))           from dbo.PharmacyOrder (nolock);
 GO
 
 /*
@@ -173,6 +175,7 @@ alter index all on dbo.Item rebuild;
 alter index all on dbo.Device rebuild;
 alter index all on dbo.Patient reorganize;
 alter index all on dbo.Encounter reorganize;
+alter index all on dbo.PharmacyOrder reorganize;
 GO
 
 select * from dbo.Company (nolock);
@@ -182,8 +185,10 @@ select * from dbo.Item (nolock);
 select * from dbo.Device (nolock);
 select * from dbo.Patient (nolock);
 select * from dbo.Encounter (nolock);
+select * from dbo.PharmacyOrder (nolock);
 GO
 
+delete from dbo.PharmacyOrder;
 delete from dbo.Encounter;
 delete from dbo.Patient;
 delete from dbo.Device;
@@ -267,4 +272,59 @@ ORDER BY
     f.CompanyKey,
     f.FacilityKey,
     d.DeviceKey;
+GO
+
+-- ================================================================================
+-- Multi-tenant query performance query demonstration.
+-- ================================================================================
+
+-- Ordered items.
+SELECT
+	po.ItemKey						AS ItemKey,
+	COUNT(*)						AS PharmacyOrderCount
+FROM
+	dbo.PharmacyOrder po
+GROUP BY
+	po.ItemKey
+ORDER BY
+	COUNT(*) DESC;
+GO
+
+-- Ordered items.
+SELECT
+	po.CompanyKey					AS CompanyKey,
+	po.ItemKey						AS ItemKey,
+	COUNT(*)						AS PharmacyOrderCount
+FROM
+	dbo.PharmacyOrder po
+GROUP BY
+	po.CompanyKey,
+	po.ItemKey
+ORDER BY
+	COUNT(*) DESC;
+GO
+
+-- Ordered items.
+WITH CompanyPharmacyOrder (CompanyKey, ItemKey, PharmacyOrderCount)
+AS
+(
+	SELECT
+		o.CompanyKey                AS CompanyKey,
+		o.ItemKey                   AS ItemKey,
+		COUNT(*)                    AS PharmacyOrderCount
+	FROM
+		dbo.PharmacyOrder o
+	GROUP BY
+		o.CompanyKey,
+		o.ItemKey
+)
+SELECT
+	cpo.ItemKey						AS ItemKey,
+	SUM(cpo.PharmacyOrderCount)		AS PharmacyOrderCount
+FROM
+	CompanyPharmacyOrder cpo
+GROUP BY
+	cpo.ItemKey
+ORDER BY
+    SUM(cpo.PharmacyOrderCount) DESC;
 GO

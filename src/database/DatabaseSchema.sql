@@ -605,16 +605,151 @@ GO
 -- --------------------------------------------------------------------------------
 -- PharmacyOrder
 -- --------------------------------------------------------------------------------
--- CREATE TABLE dbo.PharmacyOrder
--- (
--- );
--- GO
+CREATE TABLE dbo.PharmacyOrder
+(
+    CompanyKey                  uniqueidentifier    NOT NULL,
+    PharmacyOrderKey            uniqueidentifier    NOT NULL,
+    PharmacyOrderId             nchar(20)           NOT NULL,
+    ItemKey                     uniqueidentifier    NOT NULL,
+    EncounterKey                uniqueidentifier    NOT NULL,
+    PatientKey                  uniqueidentifier    NOT NULL,
+    FacilityKey                 uniqueidentifier    NOT NULL,
+    CreatedAt                   datetime2(7)        NOT NULL,
+    Rover                       rowversion          NOT NULL
+);
+GO
+
+ALTER TABLE dbo.PharmacyOrder
+    ADD CONSTRAINT pk_PharmacyOrder
+    PRIMARY KEY CLUSTERED (CompanyKey, PharmacyOrderKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+ALTER TABLE dbo.PharmacyOrder
+    ADD CONSTRAINT uk_PharmacyOrder_FacilityKeyPharmacyOrderKey
+    UNIQUE (FacilityKey, PharmacyOrderKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+ALTER TABLE dbo.PharmacyOrder
+    ADD CONSTRAINT uk_PharmacyOrder_FacilityKeyPharmacyOrderId
+    UNIQUE (FacilityKey, PharmacyOrderId)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+ALTER TABLE dbo.PharmacyOrder
+    ADD CONSTRAINT uk_PharmacyOrder_EncounterKeyPharmacyOrderKey
+    UNIQUE (EncounterKey, PharmacyOrderKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+ALTER TABLE dbo.PharmacyOrder
+    ADD CONSTRAINT uk_PharmacyOrder_PatientKeyPharmacyOrderKey
+    UNIQUE (PatientKey, PharmacyOrderKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+ALTER TABLE dbo.PharmacyOrder
+    ADD CONSTRAINT fk_PharmacyOrder_CompanyKey_Company
+    FOREIGN KEY (CompanyKey)
+    REFERENCES dbo.Company (CompanyKey);
+GO
+
+ALTER TABLE dbo.PharmacyOrder
+    ADD CONSTRAINT fk_PharmacyOrder_CompanyKeyFacilityKey_Facility
+    FOREIGN KEY (CompanyKey, FacilityKey)
+    REFERENCES dbo.Facility (CompanyKey, FacilityKey);
+GO
+
+ALTER TABLE dbo.PharmacyOrder
+    ADD CONSTRAINT fk_PharmacyOrder_CompanyKeyPatientKey_Patient
+    FOREIGN KEY (CompanyKey, PatientKey)
+    REFERENCES dbo.Patient (CompanyKey, PatientKey);
+GO
+
+ALTER TABLE dbo.PharmacyOrder
+    ADD CONSTRAINT fk_PharmacyOrder_CompanyKeyEncounterKey_Encounter
+    FOREIGN KEY (CompanyKey, EncounterKey)
+    REFERENCES dbo.Encounter (CompanyKey, EncounterKey);
+GO
+
+ALTER TABLE dbo.PharmacyOrder
+    ADD CONSTRAINT fk_PharmacyOrder_CompanyKeyItemKey_Item
+    FOREIGN KEY (CompanyKey, ItemKey)
+    REFERENCES dbo.Item (CompanyKey, ItemKey);
+GO
+
+CREATE NONCLUSTERED INDEX ix_PharmacyOrder_CompanyKey
+    ON dbo.PharmacyOrder (CompanyKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+CREATE NONCLUSTERED INDEX ix_PharmacyOrder_CompanyKeyFacilityKey
+    ON dbo.PharmacyOrder (CompanyKey, FacilityKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+CREATE NONCLUSTERED INDEX ix_PharmacyOrder_CompanyKeyPatientKey
+    ON dbo.PharmacyOrder (CompanyKey, PatientKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+CREATE NONCLUSTERED INDEX ix_PharmacyOrder_CompanyKeyEncounterKey
+    ON dbo.PharmacyOrder (CompanyKey, EncounterKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+CREATE NONCLUSTERED INDEX ix_PharmacyOrder_CompanyKeyItemKey
+    ON dbo.PharmacyOrder (CompanyKey, ItemKey)
+    WITH FILLFACTOR = 80
+    ON CoreData;
+GO
+
+-- Use full pages with stable company key and sequential rowversions. Review
+-- fragmentation behavior during tests to see if this is optimal.
+CREATE NONCLUSTERED INDEX ix_PharmacyOrder_CompanyKeyRover
+    ON dbo.PharmacyOrder (CompanyKey, Rover)
+    WITH FILLFACTOR = 100
+    ON CoreData;
+GO
+
+EXECUTE sys.sp_cdc_enable_table
+    @source_schema = N'dbo',
+    @source_name = N'PharmacyOrder',
+--  @capture_instance = N'',        -- Use default name for demo.
+    @supports_net_changes = 0,      -- No functions for net changes.
+    @role_name = NULL,              -- No gating role.
+    @index_name = NULL,
+    @captured_column_list = NULL,
+    @filegroup_name = N'CoreCdc',
+    @allow_partition_switch = 1;
+GO
 
 -- --------------------------------------------------------------------------------
 -- ItemTransaction
 -- --------------------------------------------------------------------------------
 -- CREATE TABLE dbo.ItemTransaction
 -- (
+--     CompanyKey                  uniqueidentifier    NOT NULL,
+--     ItemTransactionKey          uniqueidentifier    NOT NULL,
+--     TransactionType             varchar(10)         NOT NULL,
+--     Quantity                    numeric(9,3)        NOT NULL,
+--     ItemKey                     uniqueidentifier    NOT NULL,
+--     PharmacyOrderKey            uniqueidentifier    NOT NULL,
+--     EncounterKey                uniqueidentifier    NOT NULL,
+--     PatientKey                  uniqueidentifier    NOT NULL,
+--     FacilityKey                 uniqueidentifier    NOT NULL,
+--     CreatedAt                   datetime2(7)        NOT NULL,
+--     Rover                       rowversion          NOT NULL
 -- );
 -- GO
 

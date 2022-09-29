@@ -10,15 +10,16 @@ Roughly approximate a medication tracking scenario.
 
 Storage
 
-* **Database.** Transactional data.
-* **Message broker.** Published message data.
+* **Database.** Transaction data.
+* **Message broker.** Message data.
 
 Programs
 
-* **Generator.** Transactional workload.
-* **Purger.** Purge workload.
+* **Generator.** Transaction workload.
 * **Reader.** Query workload.
 * **Publisher.** Publishing workload (from CDC to broker).
+* **Purger.** Purge workload.
+* **Maintainer.** Maintenance workload (e.g. database indexes).
 
 ## Data Generation
 
@@ -46,6 +47,7 @@ General Information
 
 * Static entities have a fixed number of instances generated.
 * Cycled entities regularly have new instances generated that have a fixed lifespan of 24 hours. Records for expired instances are removed from the selection pool, but remain in the database.
+* Encounter and order life cycles are bound to their containing patient life cycle.
 
 Transaction Creation
 

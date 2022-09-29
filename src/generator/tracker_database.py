@@ -1,6 +1,7 @@
 import concurrent.futures
 import datetime
 import uuid
+import random
 import traceback
 
 import pyodbc
@@ -9,17 +10,19 @@ from faker import Faker
 
 # Database initialization parameters.
 _company_count = 1
-_useraccount_count = 10#00      # Per company.
+_useraccount_count = 100        # Per company.
 _facility_count = 10            # Per company.
-_item_count = 50#00             # Per facility.
+_item_count = 50                # Per facility.
 _device_count = 50              # Per facility.
 
 _patient_count = 20             # Per facility, per hour.
 _encounter_count = 6            # Per patient.
-_order_count = 2                # Per encounter.
+_pharmacy_order_count = 2       # Per encounter.
 
 _hour_count = 24                # Hours of records to create.
-_creation_threads = 10
+_worker_threads = 10
+
+_item_cache = {}                # Item cache for orders.
 
 # Database connection information.
 _sql_connection_string = ''
@@ -31,7 +34,7 @@ def _create_companies():
     fake = Faker()
     company_names = [fake.unique.company() for _ in range(_company_count)]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=_creation_threads) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=_worker_threads) as executor:
         executor.map(_create_company, company_names)
 
 
@@ -123,6 +126,8 @@ def _create_facility(company_key, facility_name, cursor):
 
 def _create_items(company_key, facility_key, cursor):
     """Creates items for the specified facility."""
+    
+    _item_cache[facility_key] = []
 
     fake = Faker()
 
@@ -137,6 +142,8 @@ def _create_item(company_key, item_name, facility_key, cursor):
 
     sql = 'INSERT INTO dbo.Item (CompanyKey, ItemKey, ItemName, FacilityKey, CreatedAt) VALUES (?, ?, ?, ?, ?);'
     cursor.execute(sql, item)
+
+    _item_cache[facility_key].append(item[1])
 
 
 def _create_devices(company_key, facility_key, cursor):
@@ -184,23 +191,42 @@ def _create_patient(company_key, patient_name, birthdate, facility_key, facility
     sql = 'INSERT INTO dbo.Patient (CompanyKey, PatientKey, PatientName, Birthdate, FacilityKey, CreatedAt) VALUES (?, ?, ?, ?, ?, ?);'
     cursor.execute(sql, patient)
 
-    _create_encounters(company_key, facility_key, patient_key, facility_fake, cursor)
+    _create_encounters(company_key, patient_key, facility_key, facility_fake, cursor)
 
 
-def _create_encounters(company_key, facility_key, patient_key, facility_fake, cursor):
+def _create_encounters(company_key, patient_key, facility_key, facility_fake, cursor):
     """Creates encounters for the specified patient."""
 
     for _ in range(_encounter_count):
-        _create_encounter(company_key, facility_fake.unique.bothify(text='ENC-?????-##########'), patient_key, facility_key, cursor)
+        _create_encounter(company_key, facility_fake.unique.bothify(text='ENC-?????-##########'), patient_key, facility_key, facility_fake, cursor)
 
 
-def _create_encounter(company_key, encounter_id, patient_key, facility_key, cursor):
+def _create_encounter(company_key, encounter_id, patient_key, facility_key, facility_fake, cursor):
 
     encounter_key = uuid.uuid4()
     encounter = (company_key, encounter_key, encounter_id, patient_key, facility_key, datetime.datetime.now())
 
     sql = 'INSERT INTO dbo.Encounter (CompanyKey, EncounterKey, EncounterId, PatientKey, FacilityKey, CreatedAt) VALUES (?, ?, ?, ?, ?, ?);'
     cursor.execute(sql, encounter)
+
+    _create_pharmacy_orders(company_key, encounter_key, patient_key, facility_key, facility_fake, cursor)
+
+
+def _create_pharmacy_orders(company_key, encounter_key, patient_key, facility_key, facility_fake, cursor):
+    """Creates orders for the specified encounter."""
+
+    for _ in range(_pharmacy_order_count):
+        _create_pharmacy_order(company_key, facility_fake.unique.bothify(text='ORD-?????-##########'), encounter_key, patient_key, facility_key, cursor)
+
+
+def _create_pharmacy_order(company_key, pharmarcy_order_id, encounter_key, patient_key, facility_key, cursor):
+
+    pharmarcy_order_key = uuid.uuid4()
+    item_key = random.choice(_item_cache[facility_key])
+    order = (company_key, pharmarcy_order_key, pharmarcy_order_id, item_key, encounter_key, patient_key, facility_key, datetime.datetime.now())
+
+    sql = 'INSERT INTO dbo.PharmacyOrder (CompanyKey, PharmacyOrderKey, PharmacyOrderId, ItemKey, EncounterKey, PatientKey, FacilityKey, CreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?);'
+    cursor.execute(sql, order)
 
 
 def initialize(sql_connection_string):
